@@ -2,7 +2,10 @@ import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
+
+export const navigationRef = createNavigationContainerRef();
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme/theme';
 
@@ -10,6 +13,7 @@ import { COLORS } from '../theme/theme';
 import { subscribeToAuthState } from '../services/auth.service';
 import { useAuthStore } from '../store/authStore';
 import { AuthUser } from '../types/auth.types';
+import { notificationService } from '../services/notification.service';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -21,6 +25,12 @@ import ProfileScreen from '../screens/ProfileScreen';
 import { TranslationScreen } from '../screens/TranslationScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import { LessonScreen } from '../screens/LessonScreen';
+import { FlashCardReviewScreen } from '../screens/FlashCardReviewScreen';
+import LessonSummaryScreen from '../screens/LessonSummaryScreen';
+import FlashCardSummaryScreen from '../screens/FlashCardSummaryScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import HelpSupportScreen from '../screens/HelpSupportScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -86,6 +96,11 @@ export default function AppNavigator() {
           photoURL: firebaseUser.photoURL,
         };
         setUser(authUser);
+
+        // Register device notifications and schedule local reminders
+        notificationService.registerForPushNotifications(firebaseUser.uid)
+          .then(() => notificationService.scheduleDailyReminder())
+          .catch(err => console.warn("Failed to init push notifications:", err));
       } else {
         setUser(null);
       }
@@ -93,20 +108,38 @@ export default function AppNavigator() {
       if (status === 'loading') setStatus(firebaseUser ? 'authenticated' : 'unauthenticated');
     });
 
-    return unsubscribe; // Cleanup on unmount
+    // Listen to notification clicks (tap response) to deep link to Notifications screen
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+      setTimeout(() => {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('Notifications' as never);
+        }
+      }, 300);
+    });
+
+    return () => {
+      unsubscribe();
+      responseSubscription.remove();
+    };
   }, []);
 
   // Show spinner while Firebase checks persisted session
   if (status === 'loading') return <LoadingScreen />;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {status === 'authenticated' ? (
           // Authenticated routes
           <>
             <Stack.Screen name="MainApp" component={MainTabNavigator} />
             <Stack.Screen name="Lesson" component={LessonScreen} />
+            <Stack.Screen name="FlashCardReview" component={FlashCardReviewScreen} />
+            <Stack.Screen name="LessonSummary" component={LessonSummaryScreen} />
+            <Stack.Screen name="FlashCardSummary" component={FlashCardSummaryScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
           </>
         ) : (
           // Unauthenticated routes

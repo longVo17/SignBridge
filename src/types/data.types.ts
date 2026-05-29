@@ -38,11 +38,13 @@ export interface Lesson {
 // User progress tracking
 export interface UserProgress {
   uid: string;
-  completedLessons: string[];   // lesson IDs
-  completedPaths: string[];     // path IDs
+  completedLessons: string[];           // lesson IDs
+  completedPaths: string[];             // path IDs
   totalXP: number;
   streakDays: number;
   lastPracticeDate: string;
+  lessonXP: Record<string, number>;     // { "basics_1": 30 } — XP per lesson
+  quizScores: Record<string, number>;   // { "basics_1": 85 } — quiz score % per lesson
 }
 
 // Practice session result
@@ -53,4 +55,14 @@ export interface PracticeResult {
   signTitle: string;
   score: number;          // 0-100
   timestamp: number;
+}
+
+// Flashcard review progress (persisted per user per path)
+export interface FlashCardProgress {
+  pathId: string;
+  masteredSignIds: string[];     // Sign IDs the user has mastered
+  unmasteredSignIds: string[];   // Sign IDs still learning
+  lastReviewDate: string;        // ISO timestamp
+  totalReviews: number;          // Total review sessions completed
+  completionRate: number;        // 0-100 percentage
 }

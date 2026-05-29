@@ -20,7 +20,7 @@ export function useSignsList(category?: string) {
       const data = await getSignsByCategory(category);
       setSigns(data);
     } catch {
-      setError('Không thể tải dữ liệu. Kiểm tra kết nối mạng.');
+      setError('Could not load dictionary data. Please check your network connection.');
     } finally {
       setLoading(false);
     }
@@ -38,7 +38,7 @@ export function useSignSearch() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Sign[]>([]);
   const [loading, setLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<any>(undefined);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

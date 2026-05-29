@@ -34,11 +34,11 @@ export default function LoginScreen() {
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập email và mật khẩu.');
+      Alert.alert('Missing Info', 'Please enter email and password.');
       return;
     }
     if (mode === 'register' && !displayName.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên hiển thị.');
+      Alert.alert('Missing Info', 'Please enter display name.');
       return;
     }
 
@@ -59,7 +59,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient colors={['#E0F7FF', '#F0F9FF', '#FFFFFF']} style={styles.container}>
+    <LinearGradient colors={['#E8F8FF', '#F0FBFF', '#FFFFFF']} style={styles.container}>
       {/* Decorative blobs */}
       <View style={styles.blobTopRight} />
       <View style={styles.blobBottomLeft} />
@@ -71,17 +71,17 @@ export default function LoginScreen() {
         >
           <Animatable.View animation="fadeInDown" delay={100} style={styles.logoSection}>
             <View style={styles.logoCircle}>
-              <Text style={styles.logoEmoji}>🤟</Text>
+              <Ionicons name="hand-left-outline" size={38} color="#2DC7FF" />
             </View>
             <Text style={styles.brandName}>SignBridge</Text>
             <Text style={styles.tagline}>Your ASL Journey Starts Here</Text>
           </Animatable.View>
 
           <Animatable.View animation="fadeInUp" delay={200} style={styles.formCard}>
-            <BlurView intensity={80} tint="light" style={styles.blurCard}>
+            <BlurView intensity={85} tint="light" style={styles.blurCard}>
               <View style={styles.formInner}>
                 <Text style={styles.formTitle}>
-                  {mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}
+                  {mode === 'login' ? 'Sign In' : 'Create Account'}
                 </Text>
 
                 {/* Error message */}
@@ -103,18 +103,19 @@ export default function LoginScreen() {
                     />
                     <TextInput
                       style={styles.input}
-                      placeholder="Tên hiển thị"
+                      placeholder="Display Name"
                       placeholderTextColor={COLORS.textSecondary}
                       value={displayName}
                       onChangeText={setDisplayName}
                       autoCapitalize="words"
                       onFocus={() => setNameFocused(true)}
                       onBlur={() => setNameFocused(false)}
+                      autoCorrect={false}
                     />
                   </View>
                 )}
 
-                {/* Email */}
+                {/* Email Input */}
                 <View style={[styles.inputWrapper, emailFocused && styles.inputFocused]}>
                   <Ionicons
                     name="mail-outline"
@@ -124,7 +125,7 @@ export default function LoginScreen() {
                   />
                   <TextInput
                     style={styles.input}
-                    placeholder="Email"
+                    placeholder="Email Address"
                     placeholderTextColor={COLORS.textSecondary}
                     value={email}
                     onChangeText={setEmail}
@@ -132,10 +133,12 @@ export default function LoginScreen() {
                     keyboardType="email-address"
                     onFocus={() => setEmailFocused(true)}
                     onBlur={() => setEmailFocused(false)}
+                    autoCorrect={false}
+                    autoComplete="email"
                   />
                 </View>
 
-                {/* Password */}
+                {/* Password Input */}
                 <View style={[styles.inputWrapper, passFocused && styles.inputFocused]}>
                   <Ionicons
                     name="lock-closed-outline"
@@ -144,18 +147,20 @@ export default function LoginScreen() {
                     style={styles.inputIcon}
                   />
                   <TextInput
-                    style={[styles.input, { flex: 1 }]}
-                    placeholder="Mật khẩu (ít nhất 6 ký tự)"
+                    style={styles.input}
+                    placeholder={mode === 'register' ? "Password (min 6 characters)" : "Password"}
                     placeholderTextColor={COLORS.textSecondary}
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
                     onFocus={() => setPassFocused(true)}
                     onBlur={() => setPassFocused(false)}
+                    autoCapitalize="none"
+                    autoCorrect={false}
                   />
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
-                    style={{ paddingRight: SPACING.sm }}
+                    style={{ paddingRight: SPACING.md }}
                   >
                     <Ionicons
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -183,7 +188,7 @@ export default function LoginScreen() {
                     ) : (
                       <>
                         <Text style={styles.submitButtonText}>
-                          {mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}
+                          {mode === 'login' ? 'Sign In' : 'Create Account'}
                         </Text>
                         <Ionicons
                           name="arrow-forward"
@@ -199,11 +204,11 @@ export default function LoginScreen() {
                 {/* Toggle mode */}
                 <View style={styles.toggleRow}>
                   <Text style={styles.toggleBase}>
-                    {mode === 'login' ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
+                    {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
                   </Text>
                   <TouchableOpacity onPress={toggleMode}>
                     <Text style={styles.toggleLink}>
-                      {mode === 'login' ? 'Đăng ký' : 'Đăng nhập'}
+                      {mode === 'login' ? 'Sign Up' : 'Sign In'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -228,34 +233,34 @@ const styles = StyleSheet.create({
     top: -80, right: -80,
     width: 250, height: 250,
     borderRadius: 125,
-    backgroundColor: 'rgba(45, 199, 255, 0.15)',
+    backgroundColor: 'rgba(45, 199, 255, 0.12)',
   },
   blobBottomLeft: {
     position: 'absolute',
     bottom: -60, left: -60,
     width: 200, height: 200,
     borderRadius: 100,
-    backgroundColor: 'rgba(45, 199, 255, 0.1)',
+    backgroundColor: 'rgba(45, 199, 255, 0.08)',
   },
   logoSection: {
     alignItems: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   logoCircle: {
     width: 80, height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(45,199,255,0.15)',
-    borderWidth: 2,
-    borderColor: 'rgba(45,199,255,0.4)',
+    backgroundColor: 'rgba(45,199,255,0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(45,199,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.sm,
   },
-  logoEmoji: { fontSize: 38 },
   brandName: {
     ...TYPOGRAPHY.headlineLarge,
     color: COLORS.primary,
     letterSpacing: -0.5,
+    fontWeight: 'bold',
   },
   tagline: {
     ...TYPOGRAPHY.bodyMedium,
@@ -270,7 +275,7 @@ const styles = StyleSheet.create({
   blurCard: {
     borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.7)',
+    borderColor: 'rgba(255,255,255,0.8)',
     overflow: 'hidden',
   },
   formInner: { padding: SPACING.lg },
@@ -278,6 +283,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.headlineMedium,
     color: COLORS.text,
     marginBottom: SPACING.md,
+    fontWeight: 'bold',
   },
   errorBox: {
     flexDirection: 'row',
@@ -296,12 +302,13 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: 'rgba(255,255,255,0.85)',
     borderRadius: BORDER_RADIUS.pill,
     borderWidth: 1.5,
     borderColor: COLORS.border,
     marginBottom: SPACING.md,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+    paddingRight: SPACING.md, // Ensure email/password input text never collides or overflows right edge
   },
   inputFocused: {
     borderColor: COLORS.primary,
@@ -312,6 +319,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyMedium,
     color: COLORS.text,
     flex: 1,
+    paddingRight: 4, // prevent edge overlap
   },
   submitButton: {
     borderRadius: BORDER_RADIUS.pill,
@@ -326,6 +334,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelLarge,
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: 'bold',
   },
   toggleRow: {
     flexDirection: 'row',
@@ -339,5 +348,6 @@ const styles = StyleSheet.create({
   toggleLink: {
     ...TYPOGRAPHY.labelLarge,
     color: COLORS.primary,
+    fontWeight: 'bold',
   },
 });

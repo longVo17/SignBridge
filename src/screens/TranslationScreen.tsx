@@ -7,7 +7,7 @@ import {
   SafeAreaView,
   Dimensions,
 } from 'react-native';
-import { CameraView, CameraType } from 'expo-camera';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +18,7 @@ const { width, height } = Dimensions.get('window');
 
 export const TranslationScreen = () => {
   const [facing, setFacing] = useState<CameraType>('front');
-  const [permission, requestPermission] = CameraView.useCameraPermissions();
+  const [permission, requestPermission] = useCameraPermissions();
   const [isTranslating, setIsTranslating] = useState(true);
   const [savedCount, setSavedCount] = useState(0);
 
@@ -31,7 +31,7 @@ export const TranslationScreen = () => {
       <LinearGradient colors={['#E8F8FF', '#F0FBFF', '#FAFEFF']} style={styles.container}>
         <SafeAreaView style={styles.permissionSafe}>
           <BlurView intensity={85} tint="light" style={styles.permissionCard}>
-            <Text style={styles.permissionEmoji}>📷</Text>
+            <Ionicons name="videocam-outline" size={56} color="#2DC7FF" style={{ marginBottom: SPACING.md }} />
             <Text style={styles.permissionTitle}>Camera Access Needed</Text>
             <Text style={styles.permissionMsg}>
               SignBridge needs camera access to translate your sign language in real time.
@@ -60,7 +60,7 @@ export const TranslationScreen = () => {
           <Animatable.View animation="fadeInDown" delay={200} style={styles.topControls}>
             {/* Screen Title Pill */}
             <BlurView intensity={75} tint="light" style={styles.titlePill}>
-              <Text style={styles.titlePillText}>🤟 Live Translation</Text>
+              <Text style={styles.titlePillText}>Live Translation</Text>
             </BlurView>
 
             {/* Control Buttons */}

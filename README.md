@@ -1,4 +1,5 @@
-# SignBridge — AI-Powered ASL Learning App 
+# SignBridge — AI-Powered ASL Learning App 🤟
+*(Ứng dụng học Ngôn ngữ ký hiệu Mỹ ASL tương tác thông minh)*
 
 <div align="center">
   <img src="https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native" />
@@ -10,78 +11,100 @@
 
 <br/>
 
-**SignBridge** là ứng dụng di động hỗ trợ học Ngôn ngữ ký hiệu Mỹ (ASL) tương tác, tích hợp công nghệ AI (TFLite) nhận diện thủ ngữ qua camera thời gian thực. Dự án được thiết kế với giao diện Glassmorphism hiện đại, cung cấp lộ trình học tập từ cơ bản đến nâng cao.
+**SignBridge** là ứng dụng di động đa nền tảng hỗ trợ học Ngôn ngữ ký hiệu Mỹ (ASL) và định hướng ký hiệu Ả Rập (WASL) tương tác, tích hợp công nghệ AI nhận diện thủ ngữ thông qua camera thiết bị thời gian thực. Ứng dụng được thiết kế tỉ mỉ theo ngôn ngữ giao diện kính mờ cao cấp (Light Theme Glassmorphism), mang lại trải nghiệm học tập lôi cuốn và mượt mà.
 
-> Được phát triển bởi [longVo17](https://github.com/longVo17).
-
----
-
-##  Tính Năng Chính
-- ** Xác thực người dùng:** Đăng nhập, đăng ký nhanh chóng bằng Email thông qua Firebase Authentication.
-- **Từ Điển Ký Hiệu (Dictionary):** Tra cứu từ vựng ASL, lọc theo danh mục, tích hợp video hướng dẫn trực quan.
-- ** Lộ Trình Học Tập (Learning Path):** Flashcard các bài học được tổ chức theo cấp độ. Ghi nhận tiến độ ("Đã hiểu").
-- ** Theo Dõi Tiến Độ (Progress Tracking):** Hệ thống XP (điểm kinh nghiệm), Level, Huy hiệu (Achievements) và chuỗi ngày học (Streak) để tạo động lực.
-- ** Video Cloudinary:** Video bài giảng được tối ưu hóa lưu trữ và phát trực tuyến bằng Cloudinary giúp giảm kích thước bộ cài.
-- ** Thực Hành AI (Sắp ra mắt):** Chia đôi màn hình cho phép người dùng mở camera thực hành trực tiếp theo video mẫu. Mô hình TFLite sẽ chấm điểm (Confidence Score) theo thời gian thực.
+> **GitHub Repository:** [longVo17/SignBridge](https://github.com/longVo17/SignBridge)
+> **Firebase Firestore Console:** [Project SignBridge Console](https://console.firebase.google.com/u/1/project/signbridge-c0b9c/firestore)
 
 ---
 
-## 🛠 Cách Chạy Ứng Dụng (Local Development)
+## ⚡ Các Tính Năng Hiện Tại (Tính đến 29/05/2026)
 
-### 1. Yêu Cầu Hệ Thống
-- [Node.js](https://nodejs.org/) (Khuyến nghị bản LTS)
-- Ứng dụng **Expo Go** trên điện thoại Android/iOS (Hoặc Android Studio Emulator / iOS Simulator).
-- Tài khoản [Firebase](https://firebase.google.com/) (Để thiết lập CSDL nếu cần).
+Hệ thống đã hoàn thiện toàn diện các mô-đun cốt lõi sẵn sàng cho môi trường sản xuất (Production-Ready):
 
-### 2. Cài Đặt
+1.  **🔑 Xác thực người dùng (Authentication):**
+    *   Đăng ký và Đăng nhập bảo mật thông qua **Firebase Authentication**.
+    *   Giao diện Glassmorphism mượt mà với tính năng kiểm soát email/mật khẩu tối ưu (Tự động cuộn email dài tránh tràn ô nhập liệu).
+2.  **✨ Bài học Mở đầu & Lộ trình Học tập (Learning Path):**
+    *   **Introduction to ASL (Cấp độ 1):** Bài học mở đầu truyền cảm hứng, giải thích lý do và ý nghĩa của ngôn ngữ ký hiệu thông qua 2 bài học trực quan *"Why Learn Sign Language?"* và *"The Power of Gestures"*.
+    *   **ASL Alphabet Part 1 & Part 2:** Phân tách bảng chữ cái A-Z khoa học giúp người dùng không bị quá tải.
+    *   Các bài học giao tiếp nâng cao: *Greetings & Meetings, Essential Communication, Colors, Numbers, v.v.*
+3.  **🎴 Ôn tập Thẻ ghi nhớ thông minh (Flashcards Hub):**
+    *   Tích hợp cử giúp vuốt thẻ **PanResponder 60fps** cực nhạy: Vuốt **Phải** để đánh dấu đã thuộc (*Mastered*), vuốt **Left** để tiếp tục ôn luyện (*Still Learning*).
+    *   Hiển thị viền màu động theo thời gian thực khi kéo thẻ (Xanh lá/Đỏ) cùng hiệu ứng lật thẻ 3D xem video.
+    *   **Khôi phục tiến trình dang dở:** Tự động lưu tiến trình và cho phép học viên ôn tập tiếp tục các từ chưa thuộc để đạt mục tiêu 100%.
+4.  **📊 Phân tích Tiến trình & Bảng xếp hạng thực tế (Analytics & Leaderboard):**
+    *   Bảng xếp hạng toàn hệ thống chỉ hiển thị học viên thật từ cơ sở dữ liệu Firestore dựa trên XP tích lũy thực tế.
+    *   Biểu đồ phân tích điểm số Quiz dạng **Lollipop Chart** thuần Native tuyệt đẹp với tooltip điểm bay lơ lửng và chấm tròn phát sáng ở đỉnh cột.
+5.  **🔔 Thông báo thông minh & Lập lịch Streak (Push Notifications & Streaks):**
+    *   Nút Chuông thông báo kính mờ tại Header trang chủ, kết nối trực tiếp vào trang **Notifications Screen**.
+    *   **Smart Streak Scheduler:** Tự động phân tích xem hôm nay người dùng đã học chưa để lên lịch nhắc nhở chuỗi ngày linh hoạt (Cảnh báo lúc 20:00 tối nay nếu chưa học, hoặc hẹn 20:00 tối mai nếu đã hoàn thành bài học).
+    *   Hỗ trợ **Deep Linking** thời gian thực (Nhấn vào thông báo đẩy ngoài màn hình khóa tự động mở app và chuyển trang thẳng vào danh sách thông báo).
+6.  **🛠️ Công cụ hỗ trợ quản trị viên (Admin Tools):**
+    *   **Obsolete Paths Purger:** Script seed dữ liệu tự động quét sạch các bài học lỗi thời trên Firestore trước khi nạp cấu trúc mới.
+    *   **User Progress Reset Utility:** Khôi phục tiến trình học tập của bất kỳ học viên nào về 0% qua terminal chỉ bằng UID mà không làm mất thông tin tài khoản hay gây lỗi xếp hạng.
+7.  **📄 Màn hình tĩnh chuyên nghiệp:**
+    *   Trang tĩnh Trợ giúp FAQ **Help & Support** với các hộp accordion thu gọn mượt mà.
+    *   Trang chính sách bảo mật **Privacy Policy** chuẩn mực.
 
-Clone dự án về máy:
+---
+
+## 🛠 Hướng Dẫn Cài Đặt & Khởi Chạy (Local Development)
+
+### 1. Chuẩn Bị Môi Trường
+*   Đã cài đặt [Node.js](https://nodejs.org/) (Khuyên dùng bản LTS v18 trở lên).
+*   Điện thoại Android/iOS đã cài ứng dụng **Expo Go** (Để chạy thử lập tức) hoặc máy ảo tương ứng.
+
+### 2. Cài Đặt Thư Viện
+Clone dự án về máy tính cá nhân của bạn:
 ```bash
 git clone https://github.com/longVo17/SignBridge.git
 cd SignBridge/SignBridgeApp
 ```
 
-Cài đặt thư viện:
+Cài đặt các gói phụ thuộc cần thiết:
 ```bash
 npm install
 ```
 
-Chạy Seed Script để tạo dữ liệu giả (nếu database Firebase đang trống):
-> **Lưu ý:** Bạn cần mở Rules của Firestore thành `allow read, write: if true;` trước khi chạy lệnh này.
+### 3. Đồng bộ Dữ liệu mẫu (Database Seeding)
+Trước khi chạy app lần đầu, bạn cần khởi tạo các Lộ trình học và từ vựng chuẩn lên Cloud Firestore bằng cách chạy script seeding sau:
 ```bash
 node scripts/seed.cjs
 ```
+*Script sẽ tự động dọn dẹp các tài liệu cũ và nạp 56 từ vựng cùng 9 Lộ trình học tiêu chuẩn lên database.*
 
-Khởi động ứng dụng bằng Expo:
+### 4. Khởi Chạy Ứng Dụng
+Kích hoạt máy chủ Expo Development:
 ```bash
 npx expo start
 ```
-*Sau đó, dùng app Expo Go quét mã QR trên terminal để xem trên điện thoại thực tế.*
+*Dùng camera điện thoại quét mã QR hiển thị trên Terminal để mở ứng dụng ngay lập tức thông qua Expo Go.*
+
+### 5. Tiện ích Đặt lại tiến độ (Reset Progress Tool)
+Nếu muốn reset toàn bộ tiến độ học tập và ôn tập flashcard của một tài khoản học viên về 0% phục vụ kiểm thử, hãy mở terminal chạy lệnh:
+```bash
+node scripts/resetProgress.cjs <USER_UID>
+```
 
 ---
 
-## 🗺 Lộ Trình Phát Triển (Roadmap)
+## 🚀 Hướng Phát Triển Tiếp Theo Trong Tương Lai (Roadmap)
 
-###  Đã Hoàn Thành
-- **Phase 1: Thiết lập Hệ Thống:** Khởi tạo Expo + TS, kết nối Firebase Auth và Firestore, thiết lập Zustand.
-- **Phase 2: Authentication:** Hoàn thiện luồng đăng nhập, đăng ký với giao diện Glassmorphism.
-- **Phase 3: Từ Điển (Dictionary):** Hoàn thiện UI tra cứu, lọc, video player. Chờ migration qua Cloudinary.
-- **Phase 4: Learning Path & Progress:** Hiển thị bài học, cộng điểm XP, tính chuỗi Streak, cấp Level, tự động mở khóa thẻ thành tựu.
+Dự án đã sẵn sàng cho các giai đoạn nâng cấp kỹ thuật tiếp theo để trở thành ứng dụng thương mại hoàn chỉnh:
 
-###  Đang Phát Triển / Cần Làm Tiếp
-- **Phase 3.5: Cloudinary Video Migration:** Đưa 30 video từ vựng gốc lên Cloudinary và stream trực tiếp thay vì lưu trong file app (`local assets`).
-- **Phase 5: Practice Screen:** Tính năng chia đôi màn hình: Nửa trên chạy video mẫu, nửa dưới bật camera để người dùng thực hành bắt chước. Lưu kết quả vào hệ thống.
-- **Phase 6: Nhận diện AI TFLite (Lõi Ứng Dụng):**
-  - Eject từ Expo Go sang Expo Dev Build để chạy mã Native trên Android.
-  - Cài đặt `react-native-vision-camera` và `react-native-fast-tflite`.
-  - Tích hợp mô hình `model.tflite` (từ SignDetect_AI) kết hợp thuật toán phân tích khung hình (Frame Processor) để đánh giá độ chính xác của thao tác tay.
-
-###  Build & Triển Khai
-- Test toàn bộ luồng học + nhận diện AI trên thiết bị Android thật.
-- Đóng gói file cài đặt (APK) thông qua EAS Cloud.
+1.  **🤖 Nhận diện Cử chỉ cử động tay qua AI thời gian thực (Local TFLite Model):**
+    *   **Eject dự án sang Dev Client:** Thực hiện lệnh `npx expo prebuild --platform android` để can thiệp sâu vào mã nguồn Native.
+    *   **Tích hợp AI Engine:** Cài đặt các thư viện `react-native-vision-camera` (lấy luồng khung hình) và `react-native-fast-tflite` (chạy mô hình học máy trực tiếp trên phần cứng máy).
+    *   **So khớp Landmarks ngón tay:** Tải mô hình `hand_landmark.tflite` vào thư mục assets, sử dụng Frame Processor Worklet để bắt tọa độ xương ngón tay của người học và chấm điểm tự tin (Confidence Score) trực quan so với video mẫu.
+2.  **💬 Đa ngôn ngữ và Bản địa hóa nâng cao (i18n & Localization):**
+    *   Tích hợp gói `i18next` để hỗ trợ dịch thuật động.
+    *   Bổ sung 3 ngôn ngữ cốt lõi: Tiếng Anh (ASL), Tiếng Việt (ASL hỗ trợ học viên Việt), và Tiếng Ả Rập (WASL).
+3.  **🔔 Tích hợp Đẩy thông báo đám mây (Cloud Push Notifications):**
+    *   Thiết lập Firebase Cloud Messaging (FCM) kết hợp Expo Notifications Services để gửi các chương trình tiếp thị và khuyến khích học tập động từ trang quản trị tập trung.
 
 ---
 
 <div align="center">
-  <i>Được phát triển với niềm đam mê phá vỡ rào cản ngôn ngữ. 🤟</i>
+  <i>Được phát triển với niềm đam mê phá vỡ rào cản ngôn ngữ, kết nối cộng đồng. 🤟</i>
 </div>

@@ -43,7 +43,7 @@ export default function WelcomeScreen({ navigation }: any) {
         <View style={styles.centerSection}>
           <Animatable.View animation="fadeInDown" duration={1000} delay={300} style={styles.iconContainer}>
             <View style={styles.iconGlass}>
-              <Ionicons name="hands-outline" size={64} color={COLORS.primary} />
+              <Ionicons name="hand-left-outline" size={64} color={COLORS.primary} />
             </View>
           </Animatable.View>
 

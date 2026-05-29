@@ -9,6 +9,7 @@ interface ProgressStore {
   addCompletedLesson: (lessonId: string, xpReward: number) => void;
   addCompletedPath: (pathId: string) => void;
   updateStreak: (streakDays: number, lastPracticeDate: string) => void;
+  saveQuizScore: (lessonId: string, score: number) => void;
 }
 
 export const useProgressStore = create<ProgressStore>((set) => ({
@@ -18,7 +19,7 @@ export const useProgressStore = create<ProgressStore>((set) => ({
   setProgress: (progress) => set({ progress }),
   setStatus: (status) => set({ status }),
 
-  addCompletedLesson: (lessonId, xpReward) => 
+  addCompletedLesson: (lessonId, xpReward) =>
     set((state) => {
       if (!state.progress) return state;
       if (state.progress.completedLessons.includes(lessonId)) return state;
@@ -28,6 +29,10 @@ export const useProgressStore = create<ProgressStore>((set) => ({
           ...state.progress,
           completedLessons: [...state.progress.completedLessons, lessonId],
           totalXP: state.progress.totalXP + xpReward,
+          lessonXP: {
+            ...(state.progress.lessonXP || {}),
+            [lessonId]: xpReward,
+          },
         }
       };
     }),
@@ -44,7 +49,7 @@ export const useProgressStore = create<ProgressStore>((set) => ({
         }
       };
     }),
-    
+
   updateStreak: (streakDays, lastPracticeDate) =>
     set((state) => {
       if (!state.progress) return state;
@@ -54,6 +59,20 @@ export const useProgressStore = create<ProgressStore>((set) => ({
           streakDays,
           lastPracticeDate,
         }
-      }
-    })
+      };
+    }),
+
+  saveQuizScore: (lessonId, score) =>
+    set((state) => {
+      if (!state.progress) return state;
+      return {
+        progress: {
+          ...state.progress,
+          quizScores: {
+            ...(state.progress.quizScores || {}),
+            [lessonId]: score,
+          },
+        }
+      };
+    }),
 }));

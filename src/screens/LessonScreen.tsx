@@ -1,305 +1,320 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, SafeAreaView, TouchableOpacity,
+  ActivityIndicator, ScrollView, Alert,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as Animatable from 'react-native-animatable';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../theme/theme';
+import { COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY } from '../theme/theme';
 import { Lesson, Sign } from '../types/data.types';
 import { learningService } from '../services/learning.service';
-import { dictionaryService } from '../services/dictionary.service';
+import { getSignById } from '../services/dictionary.service';
 import { useProgress } from '../hooks/useProgress';
-import VideoModal from '../components/ui/VideoModal';
+import FlashCard from '../components/lesson/FlashCard';
+import QuizCard, { QuizQuestion } from '../components/lesson/QuizCard';
+import LessonComplete from '../components/lesson/LessonComplete';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+type Phase = 'learn' | 'quiz' | 'complete';
+
+// ─── Quiz helpers ─────────────────────────────────────────────────────────────
+function buildQuizOptions(correct: Sign, allSigns: Sign[]): Sign[] {
+  // Get wrong options from the same signs pool (different id)
+  const pool = allSigns.filter(s => s.id !== correct.id);
+  const shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 3);
+  return [correct, ...shuffled].sort(() => Math.random() - 0.5);
+}
+
+function buildQuizQuestions(lessons: Lesson[], signsMap: Record<string, Sign>): QuizQuestion[] {
+  const allSigns = Object.values(signsMap);
+  return lessons
+    .map(lesson => {
+      const sign = signsMap[lesson.signId];
+      if (!sign) return null;
+      return {
+        sign,
+        options: buildQuizOptions(sign, allSigns.length >= 4 ? allSigns : lessons.map(l => signsMap[l.signId]).filter(Boolean) as Sign[]),
+      };
+    })
+    .filter(Boolean) as QuizQuestion[];
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export const LessonScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { pathId, pathTitle } = route.params || {};
 
-  const { completeLesson, completePath, progress } = useProgress();
+  const { completeLesson, completePath, recordQuizScore, progress } = useProgress();
+
+  // Data state
   const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [signs, setSigns] = useState<Record<string, Sign>>({});
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [signsMap, setSignsMap] = useState<Record<string, Sign>>({});
   const [loading, setLoading] = useState(true);
 
-  // VideoModal state
-  const [modalVisible, setModalVisible] = useState(false);
-  const [currentVideoUrl, setCurrentVideoUrl] = useState('');
-  const [currentSignTitle, setCurrentSignTitle] = useState('');
+  // Phase state machine
+  const [phase, setPhase] = useState<Phase>('learn');
+  const [learnIndex, setLearnIndex] = useState(0);
 
+  // Quiz state
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizIndex, setQuizIndex] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [xpEarned, setXpEarned] = useState(0);
+
+  // Exit warn dialog
+  const handleExit = useCallback(() => {
+    Alert.alert(
+      "Thoát bài học?",
+      "Tiến độ của bạn sẽ không được lưu.",
+      [
+        { text: "Hủy", style: "cancel" },
+        { text: "Đồng ý", style: "destructive", onPress: () => navigation.goBack() }
+      ]
+    );
+  }, [navigation]);
+
+  // ── Fetch data ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!pathId) {
-      setLoading(false);
-      return;
-    }
-    const fetchData = async () => {
+    if (!pathId) { setLoading(false); return; }
+
+    (async () => {
       try {
         const fetchedLessons = await learningService.getLessonsForPath(pathId);
+        // Study all lessons in the path (e.g. 13 letters for split ASL Alphabet, 3-7 for others)
         setLessons(fetchedLessons);
 
-        // Fetch signs for all lessons
-        const signData: Record<string, Sign> = {};
-        for (const lesson of fetchedLessons) {
-           const sign = await dictionaryService.getSignById(lesson.signId);
-           if (sign) {
-               signData[lesson.signId] = sign;
-           }
-        }
-        setSigns(signData);
-      } catch (error) {
-        console.error(error);
+        const map: Record<string, Sign> = {};
+        await Promise.all(
+          fetchedLessons.map(async (lesson: Lesson) => {
+            const sign = await getSignById(lesson.signId);
+            if (sign) map[lesson.signId] = sign;
+          })
+        );
+        setSignsMap(map);
+      } catch (err) {
+        console.error('LessonScreen load error:', err);
       } finally {
         setLoading(false);
       }
-    };
-    fetchData();
+    })();
   }, [pathId]);
 
+  // ── Phase: Learn handlers ─────────────────────────────────────────────────
+  const handleLearnNext = useCallback(() => {
+    if (learnIndex < lessons.length - 1) {
+      setLearnIndex(prev => prev + 1);
+    } else {
+      // Build quiz questions and transition
+      const questions = buildQuizQuestions(lessons, signsMap);
+      setQuizQuestions(questions);
+      setQuizIndex(0);
+      setCorrectCount(0);
+      setPhase('quiz');
+    }
+  }, [learnIndex, lessons, signsMap]);
+
+  // handleOpenVideo removed — FlashCard handles video inline
+
+  // ── Phase: Quiz handlers ──────────────────────────────────────────────────
+  const handleQuizAnswer = useCallback(async (isCorrect: boolean) => {
+    const newCorrect = correctCount + (isCorrect ? 1 : 0);
+
+    if (quizIndex < quizQuestions.length - 1) {
+      setCorrectCount(newCorrect);
+      setQuizIndex(prev => prev + 1);
+    } else {
+      // Quiz finished — save score and mark lessons complete
+      const finalCorrect = newCorrect;
+      const scorePercent = Math.round((finalCorrect / quizQuestions.length) * 100);
+
+      setCorrectCount(finalCorrect);
+
+      let earnedXP = 0;
+      for (const lesson of lessons) {
+        const alreadyDone = progress?.completedLessons?.includes(lesson.id);
+        if (!alreadyDone) {
+          await completeLesson(lesson.id, pathId, lesson.xpReward);
+          earnedXP += lesson.xpReward;
+        }
+      }
+
+      // Save quiz scores per-lesson (use pathId as key)
+      await recordQuizScore(pathId, scorePercent);
+
+      // Mark path complete if all lessons done
+      const allDone = lessons.every(l => progress?.completedLessons?.includes(l.id) || true);
+      if (allDone) await completePath(pathId);
+
+      setXpEarned(earnedXP);
+      setPhase('complete');
+    }
+  }, [correctCount, quizIndex, quizQuestions.length, lessons, pathId, progress, completeLesson, recordQuizScore, completePath]);
+
+  // ── Phase: Complete handlers ───────────────────────────────────────────────
+  const handleContinue = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+
+  const handleRetakeQuiz = useCallback(() => {
+    const questions = buildQuizQuestions(lessons, signsMap);
+    setQuizQuestions(questions);
+    setQuizIndex(0);
+    setCorrectCount(0);
+    setPhase('quiz');
+  }, [lessons, signsMap]);
+
+  // ── Progress bar ───────────────────────────────────────────────────────────
+  const getProgressPercent = () => {
+    if (phase === 'learn') return ((learnIndex + 1) / lessons.length) * 50;
+    if (phase === 'quiz')  return 50 + ((quizIndex + 1) / (quizQuestions.length || 1)) * 50;
+    return 100;
+  };
+
+  // ── Render: Loading ────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-         <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
+      <LinearGradient colors={['#E8F8FF', '#F0FBFF', '#FAFEFF']} style={styles.container}>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </LinearGradient>
     );
   }
 
   if (lessons.length === 0) {
-      return (
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-            <Text style={{ fontFamily: 'Inter', fontSize: 16 }}>No lessons found for this path.</Text>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
-                <Text style={{ color: COLORS.primary, fontFamily: 'Poppins-Medium' }}>Go Back</Text>
-            </TouchableOpacity>
+    return (
+      <LinearGradient colors={['#E8F8FF', '#F0FBFF', '#FAFEFF']} style={styles.container}>
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>No lessons found.</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backLink}>
+            <Text style={styles.backLinkText}>← Go Back</Text>
+          </TouchableOpacity>
         </View>
-      )
+      </LinearGradient>
+    );
   }
 
-  const currentLesson = lessons[currentIndex];
-  const currentSign = signs[currentLesson?.signId];
-  const isCompleted = progress?.completedLessons.includes(currentLesson?.id);
-
-  const handleNext = async () => {
-    // Mark complete if not already
-    if (!isCompleted) {
-       await completeLesson(currentLesson.id, pathId, currentLesson.xpReward);
-    }
-    
-    if (currentIndex < lessons.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-    } else {
-      // Finished path
-      await completePath(pathId);
-      navigation.goBack();
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-    }
-  };
-
-  const openVideo = () => {
-     if (currentSign && currentSign.videoURL) {
-         setCurrentVideoUrl(currentSign.videoURL);
-         setCurrentSignTitle(currentSign.title);
-         setModalVisible(true);
-     }
-  };
-
-  const pct = ((currentIndex + 1) / lessons.length) * 100;
+  const currentSign = signsMap[lessons[learnIndex]?.signId];
 
   return (
     <LinearGradient colors={['#E8F8FF', '#F0FBFF', '#FAFEFF']} style={styles.container}>
+      <View style={styles.blobTL} />
+      <View style={styles.blobBR} />
+
       <SafeAreaView style={{ flex: 1 }}>
-        
-        {/* Header */}
+        {/* ── Top Header ── */}
         <View style={styles.header}>
-           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Ionicons name="close" size={28} color={COLORS.text} />
-           </TouchableOpacity>
-           <View style={styles.progressContainer}>
-               <View style={styles.progressBarBg}>
-                  <LinearGradient
-                    colors={['#2DC7FF', '#00A3E0']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.progressBarFill, { width: `${pct}%` }]}
-                  />
-               </View>
-           </View>
+          <TouchableOpacity onPress={handleExit} style={styles.closeBtn}>
+            <Ionicons name="close" size={26} color={COLORS.text} />
+          </TouchableOpacity>
+
+          {/* Progress bar: 0–50% = learn, 50–100% = quiz */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBg}>
+              <LinearGradient
+                colors={phase === 'complete' ? ['#22C55E', '#16A34A'] : ['#2DC7FF', '#00A3E0']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={[styles.progressFill, { width: `${getProgressPercent()}%` }]}
+              />
+            </View>
+            {/* Phase label */}
+            <Text style={styles.phaseLabel}>
+              {phase === 'learn' ? `Learn ${learnIndex + 1}/${lessons.length}` :
+               phase === 'quiz'  ? `Quiz ${quizIndex + 1}/${quizQuestions.length}` :
+               'Complete!'}
+            </Text>
+          </View>
         </View>
 
-        {/* Flashcard */}
-        <View style={styles.flashcardContainer}>
-           <Animatable.View animation="fadeIn" duration={400} key={currentIndex} style={styles.flashcard}>
-              <Text style={styles.lessonOrder}>{pathTitle} - Lesson {currentIndex + 1} of {lessons.length}</Text>
-              
-              {currentSign ? (
-                  <>
-                     <Text style={styles.emoji}>{currentSign.emoji}</Text>
-                     <Text style={styles.signTitle}>{currentSign.title}</Text>
-                     
-                     {currentSign.videoURL ? (
-                        <TouchableOpacity style={styles.playBtn} onPress={openVideo}>
-                            <Ionicons name="play-circle" size={64} color={COLORS.primary} />
-                            <Text style={styles.playText}>Watch Sign</Text>
-                        </TouchableOpacity>
-                     ) : (
-                         <View style={styles.noVideo}>
-                             <Text style={styles.noVideoText}>Video unavailable (seed in progress)</Text>
-                         </View>
-                     )}
-                     
-                     <Text style={styles.desc}>{currentSign.description}</Text>
-                  </>
-              ) : (
-                  <Text style={styles.signTitle}>Loading sign data...</Text>
-              )}
-           </Animatable.View>
-        </View>
+        {/* ── Main Content ── */}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {phase === 'learn' && currentSign && (
+            <FlashCard
+              sign={currentSign}
+              lessonIndex={learnIndex}
+              totalLessons={lessons.length}
+              onNext={handleLearnNext}
+            />
+          )}
 
-        {/* Controls */}
-        <View style={styles.controls}>
-           <TouchableOpacity 
-              style={[styles.navBtn, currentIndex === 0 && { opacity: 0 }]} 
-              onPress={handlePrev}
-              disabled={currentIndex === 0}
-           >
-              <Text style={styles.navBtnText}>Previous</Text>
-           </TouchableOpacity>
-           
-           <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
-              <Text style={styles.nextBtnText}>
-                 {isCompleted ? 'Next' : 'Got it!'} 
-              </Text>
-              <Ionicons name="arrow-forward" size={20} color="#FFF" style={{ marginLeft: 8 }} />
-           </TouchableOpacity>
-        </View>
+          {phase === 'quiz' && quizQuestions.length > 0 && (
+            <QuizCard
+              question={quizQuestions[quizIndex]}
+              questionIndex={quizIndex}
+              totalQuestions={quizQuestions.length}
+              onAnswer={handleQuizAnswer}
+            />
+          )}
 
+          {phase === 'complete' && (
+            <LessonComplete
+              pathTitle={pathTitle || 'Lesson'}
+              totalLessons={lessons.length}
+              xpEarned={xpEarned}
+              correctAnswers={correctCount}
+              totalQuestions={quizQuestions.length}
+              streakDays={progress?.streakDays || 0}
+              onContinue={handleContinue}
+              onRetakeQuiz={handleRetakeQuiz}
+            />
+          )}
+        </ScrollView>
       </SafeAreaView>
 
-      <VideoModal
-        visible={modalVisible}
-        videoUrl={currentVideoUrl}
-        title={currentSignTitle}
-        onClose={() => setModalVisible(false)}
-      />
     </LinearGradient>
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  blobTL: {
+    position: 'absolute', top: -80, left: -60,
+    width: 200, height: 200, borderRadius: 100,
+    backgroundColor: 'rgba(45,199,255,0.1)',
+  },
+  blobBR: {
+    position: 'absolute', bottom: -60, right: -60,
+    width: 160, height: 160, borderRadius: 80,
+    backgroundColor: 'rgba(45,199,255,0.07)',
+  },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textSecondary },
+  backLink: { marginTop: SPACING.md },
+  backLinkText: { ...TYPOGRAPHY.labelLarge, color: COLORS.primary },
   header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: SPACING.lg,
-      paddingTop: SPACING.md,
-      paddingBottom: SPACING.sm
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+    gap: SPACING.md,
   },
-  backBtn: {
-      padding: SPACING.xs
+  closeBtn: { padding: 4 },
+  progressContainer: { flex: 1 },
+  progressBg: {
+    height: 10,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginBottom: 4,
   },
-  progressContainer: {
-      flex: 1,
-      marginLeft: SPACING.md,
-      marginRight: SPACING.lg
+  progressFill: { height: '100%', borderRadius: 5 },
+  phaseLabel: {
+    ...TYPOGRAPHY.labelMedium,
+    color: COLORS.textSecondary,
+    fontSize: 12,
   },
-  progressBarBg: {
-      height: 12,
-      backgroundColor: 'rgba(0,0,0,0.05)',
-      borderRadius: 6,
-      overflow: 'hidden'
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.lg,
+    paddingBottom: SPACING.xxl,
   },
-  progressBarFill: {
-      height: '100%',
-      borderRadius: 6
-  },
-  flashcardContainer: {
-      flex: 1,
-      padding: SPACING.xl,
-      justifyContent: 'center'
-  },
-  flashcard: {
-      backgroundColor: 'rgba(255,255,255,0.8)',
-      borderRadius: BORDER_RADIUS.xl,
-      padding: SPACING.xl,
-      alignItems: 'center',
-      ...SHADOWS.md,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.5)'
-  },
-  lessonOrder: {
-      fontFamily: 'Inter',
-      color: COLORS.textSecondary,
-      marginBottom: SPACING.sm,
-      textAlign: 'center'
-  },
-  emoji: {
-      fontSize: 80,
-      marginBottom: SPACING.md
-  },
-  signTitle: {
-      fontFamily: 'Poppins-Bold',
-      fontSize: 28,
-      color: COLORS.text,
-      marginBottom: SPACING.lg,
-      textAlign: 'center'
-  },
-  playBtn: {
-      alignItems: 'center',
-      marginBottom: SPACING.xl
-  },
-  playText: {
-      fontFamily: 'Poppins-Medium',
-      color: COLORS.primary,
-      marginTop: SPACING.xs
-  },
-  noVideo: {
-      padding: SPACING.md,
-      backgroundColor: COLORS.surfaceDim,
-      borderRadius: BORDER_RADIUS.md,
-      marginBottom: SPACING.xl
-  },
-  noVideoText: {
-      color: COLORS.textSecondary,
-      fontFamily: 'Inter'
-  },
-  desc: {
-      fontFamily: 'Inter',
-      fontSize: 16,
-      color: COLORS.textSecondary,
-      textAlign: 'center',
-      lineHeight: 24
-  },
-  controls: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: SPACING.xl,
-      paddingBottom: SPACING.xxl
-  },
-  navBtn: {
-      padding: SPACING.md
-  },
-  navBtnText: {
-      fontFamily: 'Poppins-Medium',
-      color: COLORS.textSecondary,
-      fontSize: 16
-  },
-  nextBtn: {
-      backgroundColor: COLORS.primary,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: SPACING.xl,
-      paddingVertical: SPACING.md,
-      borderRadius: 30,
-      ...SHADOWS.sm
-  },
-  nextBtnText: {
-      color: '#FFF',
-      fontFamily: 'Poppins-Bold',
-      fontSize: 16
-  }
 });

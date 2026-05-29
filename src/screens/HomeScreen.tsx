@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -15,8 +16,10 @@ import * as Animatable from 'react-native-animatable';
 import { useAuthStore } from '../store/authStore';
 import { useProgress } from '../hooks/useProgress';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../theme/theme';
+import { learningService } from '../services/learning.service';
 
 const { width } = Dimensions.get('window');
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80';
 
 const QUICK_ACTIONS = [
   { id: '1', icon: 'videocam' as const, label: 'AI Practice', color: '#2DC7FF', bg: 'rgba(45,199,255,0.12)', screen: 'Practice' },
@@ -26,14 +29,27 @@ const QUICK_ACTIONS = [
 ];
 
 const DAILY_SIGNS = [
-  { id: '1', emoji: '👋', word: 'Hello', category: 'Greetings' },
-  { id: '2', emoji: '🙏', word: 'Thank You', category: 'Polite' },
-  { id: '3', emoji: '✌️', word: 'Peace', category: 'Basics' },
+  { id: '1', iconName: 'hand-left-outline' as const, word: 'Hello', category: 'Greetings' },
+  { id: '2', iconName: 'heart-outline' as const, word: 'Thank You', category: 'Polite' },
+  { id: '3', iconName: 'happy-outline' as const, word: 'Peace', category: 'Basics' },
 ];
 
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuthStore();
   const { progress } = useProgress();
+  const [paths, setPaths] = useState<any[]>([]);
+
+  // Fetch learning paths to calculate completed ones for review
+  useEffect(() => {
+    (async () => {
+      try {
+        const fetchedPaths = await learningService.getLearningPaths();
+        setPaths(fetchedPaths);
+      } catch (err) {
+        console.error("Failed to load paths in HomeScreen:", err);
+      }
+    })();
+  }, []);
 
   const streak = progress?.streakDays || 0;
   const xp = progress?.totalXP || 0;
@@ -41,6 +57,21 @@ export default function HomeScreen({ navigation }: any) {
   const level = Math.floor(xp / 100) + 1;
   const xpToNextLevel = 100 - (xp % 100);
   const progressPercent = (xp % 100);
+
+  // Filter paths completed by the user
+  const completedPaths = paths.filter(p => progress?.completedPaths?.includes(p.id));
+
+  const translateTitle = (title: string) => {
+    const t = title.toLowerCase();
+    if (t.includes('bảng chữ cái') || t.includes('alphabet')) return 'ASL Alphabet';
+    if (t.includes('chào hỏi') || t.includes('greeting')) return 'Greetings & Meetings';
+    if (t.includes('giao tiếp') || t.includes('essential')) return 'Essential Comm';
+    if (t.includes('màu sắc') || t.includes('color')) return 'ASL Colors';
+    if (t.includes('chữ số') || t.includes('number')) return 'ASL Numbers';
+    return title;
+  };
+
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'ASL Explorer';
 
   return (
     <LinearGradient
@@ -58,34 +89,78 @@ export default function HomeScreen({ navigation }: any) {
         >
           {/* Header */}
           <Animatable.View animation="fadeInDown" delay={50} style={styles.header}>
-            <View>
+            <View style={{ flex: 1, marginRight: SPACING.md }}>
               <Text style={styles.greeting}>Good morning,</Text>
-              <Text style={styles.userName}>{user?.email ? user.email.split('@')[0] : 'Explorer'} 👋</Text>
+              <Text 
+                style={styles.userName}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {displayName}
+              </Text>
             </View>
+
+            {/* Bell Icon Notification Trigger */}
+            <TouchableOpacity
+              style={styles.bellButton}
+              onPress={() => navigation.navigate('Notifications')}
+              activeOpacity={0.7}
+            >
+              <BlurView intensity={75} tint="light" style={styles.bellBlur}>
+                <Ionicons name="notifications-outline" size={20} color={COLORS.primary} />
+              </BlurView>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.profileAvatar}
               onPress={() => navigation.navigate('Profile')}
+              activeOpacity={0.8}
             >
               <LinearGradient
                 colors={['#2DC7FF', '#00A3E0']}
-                style={styles.avatarGradient}
+                style={styles.avatarGradientRing}
               >
-                <Ionicons name="person" size={22} color="#FFFFFF" />
+                <Image
+                  source={{ uri: user?.photoURL || DEFAULT_AVATAR }}
+                  style={styles.homeAvatarImage}
+                />
               </LinearGradient>
             </TouchableOpacity>
           </Animatable.View>
+
+          {/* Completed Lessons Section (Review finished units side-by-side above progress card) */}
+          {completedPaths.length > 0 && (
+            <Animatable.View animation="fadeInDown" delay={100} style={styles.reviewSection}>
+              <Text style={styles.reviewTitle}>Review Completed Units</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.reviewScroll}>
+                {completedPaths.map(path => (
+                  <TouchableOpacity
+                    key={path.id}
+                    style={styles.reviewBadge}
+                    onPress={() => navigation.navigate('Learn')}
+                    activeOpacity={0.85}
+                  >
+                    <BlurView intensity={80} tint="light" style={styles.reviewBlur}>
+                      <Ionicons name="repeat" size={14} color={COLORS.primary} style={{ marginRight: 6 }} />
+                      <Text style={styles.reviewBadgeText}>{translateTitle(path.title)}</Text>
+                    </BlurView>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </Animatable.View>
+          )}
 
           {/* Progress Card */}
           <Animatable.View animation="fadeInUp" delay={150}>
             <BlurView intensity={85} tint="light" style={styles.progressCard}>
               <View style={styles.progressCardInner}>
                 <View style={styles.progressTop}>
-                  <View>
+                  <View style={{ flex: 1 }}>
                     <Text style={styles.progressTitle}>Level {level}</Text>
                     <Text style={styles.progressSubtitle}>{xp} Total XP — {xpToNextLevel} to next lvl</Text>
                   </View>
                   <View style={styles.streakBadge}>
-                    <Text style={styles.streakEmoji}>🔥</Text>
+                    <Ionicons name="flame" size={16} color="#F97316" style={{ marginRight: 4 }} />
                     <Text style={styles.streakText}>{streak} days</Text>
                   </View>
                 </View>
@@ -147,16 +222,20 @@ export default function HomeScreen({ navigation }: any) {
           <Animatable.View animation="fadeInUp" delay={500}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Daily Signs</Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Dictionary')}>
                 <Text style={styles.seeAll}>See all</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {DAILY_SIGNS.map((sign, index) => (
                 <Animatable.View key={sign.id} animation="fadeInRight" delay={550 + index * 100}>
-                  <TouchableOpacity style={styles.signCard} activeOpacity={0.85}>
+                  <TouchableOpacity 
+                    style={styles.signCard} 
+                    activeOpacity={0.85}
+                    onPress={() => navigation.navigate('Dictionary')}
+                  >
                     <BlurView intensity={80} tint="light" style={styles.signBlur}>
-                      <Text style={styles.signEmoji}>{sign.emoji}</Text>
+                      <Ionicons name={sign.iconName} size={40} color="#2DC7FF" style={{ marginBottom: SPACING.sm }} />
                       <Text style={styles.signWord}>{sign.word}</Text>
                       <View style={styles.signCategoryBadge}>
                         <Text style={styles.signCategoryText}>{sign.category}</Text>
@@ -204,7 +283,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: SPACING.md,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   greeting: {
     ...TYPOGRAPHY.bodyLarge,
@@ -214,19 +293,64 @@ const styles = StyleSheet.create({
   userName: {
     ...TYPOGRAPHY.headlineLarge,
     color: COLORS.text,
+    fontSize: 24,
+    fontWeight: 'bold',
   },
   profileAvatar: {
-    borderRadius: 28,
+    borderRadius: 24,
     overflow: 'hidden',
     ...SHADOWS.glass,
   },
-  avatarGradient: {
+  avatarGradientRing: {
     width: 48,
     height: 48,
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  homeAvatarImage: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#E8F8FF',
+  },
+
+  // Completed Lessons section above main progress card
+  reviewSection: {
+    marginBottom: SPACING.md,
+    width: '100%',
+  },
+  reviewTitle: {
+    ...TYPOGRAPHY.labelSmall,
+    color: COLORS.textSecondary,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    fontSize: 12,
+  },
+  reviewScroll: {
+    flexDirection: 'row',
+  },
+  reviewBadge: {
+    borderRadius: BORDER_RADIUS.pill,
+    overflow: 'hidden',
+    marginRight: 10,
+    ...SHADOWS.soft,
+  },
+  reviewBlur: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+  },
+  reviewBadgeText: {
+    ...TYPOGRAPHY.labelSmall,
+    color: COLORS.text,
+    fontWeight: '700',
+    fontSize: 11,
+  },
+
   // Progress Card
   progressCard: {
     borderRadius: BORDER_RADIUS.xl,
@@ -248,6 +372,7 @@ const styles = StyleSheet.create({
   progressTitle: {
     ...TYPOGRAPHY.headlineMedium,
     color: COLORS.text,
+    fontWeight: 'bold',
   },
   progressSubtitle: {
     ...TYPOGRAPHY.bodyMedium,
@@ -262,14 +387,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: BORDER_RADIUS.pill,
   },
-  streakEmoji: {
-    fontSize: 16,
-    marginRight: 4,
-  },
   streakText: {
     ...TYPOGRAPHY.labelLarge,
     color: '#F97316',
     fontSize: 13,
+    fontWeight: 'bold',
   },
   progressBarBg: {
     height: 10,
@@ -294,12 +416,14 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelLarge,
     color: '#FFFFFF',
     fontSize: 15,
+    fontWeight: 'bold',
   },
   // Section
   sectionTitle: {
     ...TYPOGRAPHY.headlineMedium,
     color: COLORS.text,
     marginBottom: SPACING.md,
+    fontWeight: 'bold',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -312,6 +436,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelLarge,
     color: COLORS.primary,
     fontSize: 13,
+    fontWeight: 'bold',
   },
   // Quick Actions Grid
   actionsGrid: {
@@ -350,6 +475,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelLarge,
     color: COLORS.text,
     textAlign: 'center',
+    fontWeight: 'bold',
   },
   // Daily Signs
   signCard: {
@@ -367,14 +493,11 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
   },
-  signEmoji: {
-    fontSize: 40,
-    marginBottom: SPACING.sm,
-  },
   signWord: {
     ...TYPOGRAPHY.labelLarge,
     color: COLORS.text,
     marginBottom: 6,
+    fontWeight: 'bold',
   },
   signCategoryBadge: {
     backgroundColor: 'rgba(45,199,255,0.12)',
@@ -386,5 +509,20 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelLarge,
     color: COLORS.primary,
     fontSize: 11,
+    fontWeight: 'bold',
+  },
+  bellButton: {
+    borderRadius: 20,
+    marginRight: 10,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    ...SHADOWS.soft,
+  },
+  bellBlur: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

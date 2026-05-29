@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,14 +25,14 @@ import VideoModal from '../components/ui/VideoModal';
 const { width } = Dimensions.get('window');
 const CARD_W = (width - SPACING.sm * 2 - 12) / 2;
 
-const CATEGORY_ICONS: Record<string, string> = {
-  'All':       '✨',
-  'Greetings': '👋',
-  'Basics':    '💬',
-  'Daily':     '🌅',
-  'Family':    '👨‍👩‍👧',
-  'Numbers':   '🔢',
-  'Colors':    '🎨',
+const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  'All':       'sparkles-outline',
+  'Greetings': 'hand-left-outline',
+  'Basics':    'chatbubble-outline',
+  'Daily':     'sunny-outline',
+  'Family':    'people-outline',
+  'Numbers':   'grid-outline',
+  'Colors':    'color-palette-outline',
 };
 
 export const DictionaryScreen = () => {
@@ -40,13 +40,44 @@ export const DictionaryScreen = () => {
   const [selectedSign, setSelectedSign] = useState<Sign | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [query, setQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  const { signs, loading, error, reload } = useSignsList(selectedCategory);
-  const { query, setQuery, results, loading: searching } = useSignSearch();
-  const categories = useCategories();
+  // 1. Fetch all signs once (using useSignsList(undefined))
+  const { signs, loading, error, reload } = useSignsList(undefined);
 
-  const displayedSigns = query.trim() ? results : signs;
-  const isLoading = loading || searching;
+  // 2. Extract unique categories client-side from loaded signs
+  const categories = useMemo(() => {
+    const list = signs.map((s) => s.category);
+    return [...new Set(list)].sort();
+  }, [signs]);
+
+  // 3. Filter signs by selectedCategory and query client-side
+  const displayedSigns = useMemo(() => {
+    let filtered = [...signs];
+
+    // Filter by category
+    if (selectedCategory) {
+      filtered = filtered.filter(
+        (s) => s.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    // Filter by search query
+    if (query.trim()) {
+      const lower = query.toLowerCase().trim();
+      filtered = filtered.filter(
+        (s) =>
+          s.title.toLowerCase().includes(lower) ||
+          s.category.toLowerCase().includes(lower) ||
+          s.keywords?.some((k) => k.toLowerCase().includes(lower)) ||
+          s.description?.toLowerCase().includes(lower)
+      );
+    }
+
+    // Sort alphabetically by title
+    return filtered.sort((a, b) => a.title.localeCompare(b.title));
+  }, [signs, selectedCategory, query]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -60,28 +91,43 @@ export const DictionaryScreen = () => {
   };
 
   // ── Render header + search + category filter ───────────────────
-  const ListHeader = () => (
+  const renderHeader = () => (
     <>
       {/* Page Header */}
       <LinearGradient
         colors={['rgba(45,199,255,0.12)', 'transparent']}
         style={styles.pageHeader}
       >
-        <Text style={styles.pageTitle}>📖 Từ điển Ký hiệu</Text>
+        <Text style={styles.pageTitle}>ASL Dictionary</Text>
         <Text style={styles.pageSubtitle}>
-          {query.trim() ? `${results.length} kết quả cho "${query}"` : `${signs.length} ký hiệu ASL`}
+          {query.trim()
+            ? `${displayedSigns.length} result${displayedSigns.length !== 1 ? 's' : ''} for "${query}"`
+            : `${displayedSigns.length} ASL sign${displayedSigns.length !== 1 ? 's' : ''}`}
         </Text>
 
         {/* Search Bar */}
-        <BlurView intensity={60} tint="light" style={styles.searchBar}>
-          <Ionicons name="search-outline" size={18} color={COLORS.textSecondary} />
+        <BlurView 
+          intensity={85} 
+          tint="light" 
+          style={[
+            styles.searchBar,
+            isSearchFocused && styles.searchBarFocused
+          ]}
+        >
+          <Ionicons 
+            name="search-outline" 
+            size={18} 
+            color={isSearchFocused ? '#2DC7FF' : COLORS.textSecondary} 
+          />
           <TextInput
             style={styles.searchInput}
-            placeholder="Tìm ký hiệu..."
+            placeholder="Search dictionary..."
             placeholderTextColor={COLORS.textSecondary}
             value={query}
             onChangeText={setQuery}
             returnKeyType="search"
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => setQuery('')}>
@@ -105,7 +151,11 @@ export const DictionaryScreen = () => {
               style={[styles.categoryChip, active && styles.categoryChipActive]}
               onPress={() => setSelectedCategory(item === 'All' ? undefined : item)}
             >
-              <Text style={styles.categoryEmoji}>{CATEGORY_ICONS[item] ?? '📌'}</Text>
+              <Ionicons 
+                name={CATEGORY_ICONS[item] ?? 'bookmark-outline'} 
+                size={14} 
+                color={active ? '#FFF' : '#2DC7FF'} 
+              />
               <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
                 {item}
               </Text>
@@ -120,12 +170,12 @@ export const DictionaryScreen = () => {
   const renderSignCard = ({ item, index }: { item: Sign; index: number }) => (
     <Animatable.View animation="fadeInUp" delay={index * 40} useNativeDriver>
       <TouchableOpacity style={styles.card} onPress={() => openModal(item)} activeOpacity={0.75}>
-        {/* Thumbnail or Emoji placeholder */}
+        {/* Thumbnail or Icon placeholder */}
         <View style={styles.thumbWrap}>
           {item.thumbnailURL ? (
             <Image source={{ uri: item.thumbnailURL }} style={styles.thumb} resizeMode="cover" />
           ) : (
-            <Text style={styles.thumbEmoji}>{item.emoji}</Text>
+            <Ionicons name="videocam-outline" size={40} color="#2DC7FF" />
           )}
           {/* Play overlay */}
           <View style={styles.playOverlay}>
@@ -139,7 +189,6 @@ export const DictionaryScreen = () => {
 
         {/* Card content */}
         <View style={styles.cardContent}>
-          <Text style={styles.cardEmoji}>{item.emoji}</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
             <Text style={styles.cardCategory}>{item.category}</Text>
@@ -152,28 +201,28 @@ export const DictionaryScreen = () => {
   // ── Empty / Error States ───────────────────────────────────────
   const ListEmpty = () => (
     <View style={styles.emptyWrap}>
-      {isLoading ? (
+      {loading ? (
         <>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.emptyText}>Đang tải...</Text>
+          <Text style={styles.emptyText}>Loading dictionary...</Text>
         </>
       ) : error ? (
         <>
-          <Text style={styles.emptyIcon}>⚠️</Text>
+          <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
           <Text style={styles.emptyText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={reload}>
-            <Text style={styles.retryText}>Thử lại</Text>
+            <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </>
       ) : query.trim() ? (
         <>
-          <Text style={styles.emptyIcon}>🔍</Text>
-          <Text style={styles.emptyText}>Không tìm thấy "{query}"</Text>
+          <Ionicons name="search-outline" size={48} color={COLORS.textSecondary} />
+          <Text style={styles.emptyText}>No results found for "{query}"</Text>
         </>
       ) : (
         <>
-          <Text style={styles.emptyIcon}>📭</Text>
-          <Text style={styles.emptyText}>Chưa có dữ liệu. Hãy seed Firestore!</Text>
+          <Ionicons name="folder-open-outline" size={48} color={COLORS.textSecondary} />
+          <Text style={styles.emptyText}>No signs in database. Please seed Firestore!</Text>
         </>
       )}
     </View>
@@ -188,7 +237,7 @@ export const DictionaryScreen = () => {
           numColumns={2}
           columnWrapperStyle={styles.row}
           renderItem={renderSignCard}
-          ListHeaderComponent={ListHeader}
+          ListHeaderComponent={renderHeader()}
           ListEmptyComponent={ListEmpty}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -248,14 +297,23 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 10,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    borderRadius: 100, // Make it a gorgeous pill shape
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: 'rgba(45,199,255,0.15)',
     ...SHADOWS.soft,
+  },
+  searchBarFocused: {
+    borderColor: '#2DC7FF',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    shadowColor: '#2DC7FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
   },
   searchInput: {
     flex: 1,

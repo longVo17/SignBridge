@@ -1,5 +1,8 @@
 import { db } from '../config/firebase';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, orderBy, increment, arrayUnion } from 'firebase/firestore';
+import {
+  collection, doc, getDoc, getDocs, setDoc,
+  updateDoc, query, orderBy, increment, arrayUnion
+} from 'firebase/firestore';
 import { LearningPath, Lesson, UserProgress } from '../types/data.types';
 
 export const learningService = {
@@ -10,7 +13,7 @@ export const learningService = {
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => doc.data() as LearningPath);
     } catch (error) {
-      console.error("Error fetching learning paths:", error);
+      console.error('Error fetching learning paths:', error);
       throw error;
     }
   },
@@ -31,9 +34,14 @@ export const learningService = {
     try {
       const progressRef = doc(db, 'userProgress', uid);
       const progressDoc = await getDoc(progressRef);
-      
       if (progressDoc.exists()) {
-        return progressDoc.data() as UserProgress;
+        const data = progressDoc.data() as UserProgress;
+        // Backward-compat: ensure new fields exist
+        return {
+          ...data,
+          lessonXP: data.lessonXP || {},
+          quizScores: data.quizScores || {},
+        };
       }
       return null;
     } catch (error) {
@@ -52,6 +60,8 @@ export const learningService = {
         totalXP: 0,
         streakDays: 0,
         lastPracticeDate: new Date().toISOString(),
+        lessonXP: {},
+        quizScores: {},
       };
       await setDoc(progressRef, newProgress);
       return newProgress;
@@ -64,12 +74,22 @@ export const learningService = {
   markLessonComplete: async (uid: string, lessonId: string, xpReward: number): Promise<void> => {
     try {
       const progressRef = doc(db, 'userProgress', uid);
+      const userRef = doc(db, 'users', uid);
       const now = new Date().toISOString();
-
+      
       await updateDoc(progressRef, {
         completedLessons: arrayUnion(lessonId),
         totalXP: increment(xpReward),
         lastPracticeDate: now,
+        [`lessonXP.${lessonId}`]: xpReward,
+      });
+
+      // Synchronize totalXP and lastActiveDate to users collection for leaderboard
+      await updateDoc(userRef, {
+        totalXP: increment(xpReward),
+        lastActiveDate: now.split('T')[0],
+      }).catch(err => {
+        console.warn("Failed to sync totalXP in users collection:", err);
       });
     } catch (error) {
       console.error(`Error marking lesson ${lessonId} complete:`, error);
@@ -89,16 +109,28 @@ export const learningService = {
     }
   },
 
+  saveQuizScore: async (uid: string, lessonId: string, score: number): Promise<void> => {
+    try {
+      const progressRef = doc(db, 'userProgress', uid);
+      await updateDoc(progressRef, {
+        [`quizScores.${lessonId}`]: score,
+      });
+    } catch (error) {
+      console.error(`Error saving quiz score for ${lessonId}:`, error);
+      throw error;
+    }
+  },
+
   updateStreak: async (uid: string, newStreak: number, lastDate: string): Promise<void> => {
     try {
       const progressRef = doc(db, 'userProgress', uid);
       await updateDoc(progressRef, {
         streakDays: newStreak,
-        lastPracticeDate: lastDate
+        lastPracticeDate: lastDate,
       });
     } catch (error) {
       console.error(`Error updating streak for user ${uid}:`, error);
       throw error;
     }
-  }
+  },
 };
